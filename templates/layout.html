@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Tissue Decalcification Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+
+{%if session['role'] == "pathologist" %}
+
+<body class="bg-gray-100 min-h-screen flex flex-col">
+    <nav class="bg-blue-600 p-8 text-white flex justify-between" style="background-color: lab(0 0 0 / 1); ">
+        {% else %}
+        {%if session['role'] == "MTA" %}
+
+        <body class="bg-gray-100 min-h-screen flex flex-col">
+            <nav class="bg-gray-600 p-8 text-white flex justify-between" style="background-color: lab(51.35 52.89 -28.13); ">
+                {% else %}
+                {%if session['role'] == "LAB" %}
+
+                <body class="bg-gray-100 min-h-screen flex flex-col">
+                    <nav class="bg-pink-600 p-8 text-white flex justify-between">
+                        {% else %}
+
+                        <body class="bg-gray-100 min-h-screen flex flex-col">
+                            <nav class="bg-blue-600 p-8 text-white flex justify-between">
+                                {% endif %}
+                                {% endif %}
+                                {% endif %}
+                                <div class="font-bold">Tissue Decalcification Management</div>
+                                <div>
+                                    {% if session['username'] %}
+                                    <span class="mr-4">Logged in as {{ session['username'] }} ({{ session['role'] }})</span>
+                                    <a href="{{ url_for('logout') }}" class="bg-red-500 px-3 py-1 rounded">Logout</a>
+                                    {% endif %}
+                                </div>
+                            </nav>
+                            <div class="flex-1 p-4 container mx-auto">
+                                {% block content %}{% endblock %}
+                            </div>
+                            <footer class="mt-auto bg-gray-800 text-white p-4 text-center">
+                                &copy; 2025 Azrael @ Azelut. Alle Rechte vorbehalten.
+                            </footer>
+                        </body>
+
+                        <style>
+                            /* Hier kannst du den Pfad zu deinem Bild anpassen */
+                            body {
+                                background-image: linear-gradient(0deg, rgba(177 177 177 / 0.7), rgb(242 242 242)), url('/decal/static/images/tbg.png') !important;
+                                background-size: cover;
+                                background-position: center;
+                                background-repeat: no-repeat;
+                            }
+                        </style>
+
+</html>

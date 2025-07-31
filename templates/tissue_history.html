@@ -1,0 +1,27 @@
+<div class="mb-4">
+    <p><strong>Case ID:</strong> {{ tissue.case_id }}</p>
+    <p><strong>Tissue ID:</strong> {{ tissue.tissue_id }}</p>
+    <p><strong>Process:</strong> {{ tissue.process }}</p>
+    <p><strong>Status:</strong> {{ tissue.status }}</p>
+    <p><strong>Last Updated:</strong> {{ tissue.last_updated.strftime('%Y-%m-%d %H:%M') }}</p>
+</div>
+<div class="overflow-x-auto max-h-60 overflow-y-auto border border-gray-300 p-2">
+    <table class="w-full border-collapse border border-gray-400">
+        <thead>
+            <tr>
+                <th class="border border-gray-300 px-2 py-1">Action</th>
+                <th class="border border-gray-300 px-2 py-1">Timestamp</th>
+                <th class="border border-gray-300 px-2 py-1">Person</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for entry in history %}
+            <tr>
+                <td class="border border-gray-300 px-2 py-1">{{ entry.action }}</td>
+                <td class="border border-gray-300 px-2 py-1">{{ entry.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td class="border border-gray-300 px-2 py-1">{{ entry.mta_name }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

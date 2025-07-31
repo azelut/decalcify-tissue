@@ -1,0 +1,116 @@
+{% extends 'layout.html' %} {% block content %}
+<h2 class="text-xl mb-4">Create New Tissue Decalcification Processing</h2>
+<form id="tissueForm" class="bg-white p-4 rounded shadow space-y-4 max-w-3xl mx-auto">
+    <div>
+        <label class="block mb-1">Case ID (for example X123-45, Y987-6)</label>
+        <input type="text" id="case_id" name="case_id" class="w-full border p-2 rounded" required pattern="[A-Z]\d+-\d+" title="Case ID (for example X123-45, Y987-6 )" />
+    </div>
+    <div>
+        <label class="block mb-1">Tissue ID (for example A-9, I-1, I-20)</label>
+        <input type="text" id="tissue_id" name="tissue_id" class="w-full border p-2 rounded" required pattern="^[A-Z]?-\d+$" title="Tissue ID  (for example A-9, I-1, J-20)" />
+    </div>
+    <div>
+        <label class="block mb-1">Process</label>
+        <div class="flex space-x-4">
+            <button type="button" id="edta_btn" name="process" value="EDTA" class="bg-green-500 px-4 py-2 rounded text-white">EDTA</button>
+            <button type="button" id="acid_btn" name="process" value="ACID" class="bg-yellow-500 px-4 py-2 rounded text-white">ACID</button>
+        </div>
+    </div>
+</form>
+
+<!-- Erfolgreich-Message Div, initial versteckt -->
+<div id="successMessage" class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative hidden" role="alert">
+    <strong class="font-bold">Success!</strong>
+    <span class="block sm:inline">New Data is saved to the database.</span>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const form = document.getElementById('tissueForm');
+        const caseInput = document.getElementById('case_id');
+        const tissueInput = document.getElementById('tissue_id');
+        const successDiv = document.getElementById('successMessage');
+        const edtaBtn = document.getElementById('edta_btn');
+        const acidBtn = document.getElementById('acid_btn');
+
+        let selectedProcess = null;
+
+        function checkValidity() {
+            const caseValid = caseInput.checkValidity();
+            const tissueValid = tissueInput.checkValidity();
+            const buttons = [edtaBtn, acidBtn];
+            buttons.forEach(btn => {
+                btn.disabled = !(caseValid && tissueValid);
+                if (!(caseValid && tissueValid)) {
+                    btn.classList.add('opacity-50', 'cursor-not-allowed');
+                } else {
+                    btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
+            });
+        }
+
+        // Event-Listener für Eingabefelder
+        caseInput.addEventListener('input', checkValidity);
+        tissueInput.addEventListener('input', checkValidity);
+
+        // Initial prüfen
+        checkValidity();
+
+        // Button-Event-Handler, um den Prozess auszuwählen
+        edtaBtn.addEventListener('click', () => {
+            selectedProcess = 'EDTA';
+            submitForm();
+        });
+        acidBtn.addEventListener('click', () => {
+            selectedProcess = 'ACID';
+            submitForm();
+        });
+
+        function showSuccessMessage() {
+            successDiv.classList.remove('hidden');
+            setTimeout(() => {
+                successDiv.classList.add('hidden');
+            }, 3000);
+        }
+
+        async function submitForm() {
+            // Validierung nochmal prüfen
+            if (!caseInput.checkValidity() || !tissueInput.checkValidity() || !selectedProcess) {
+
+                return;
+            }
+
+            // Formulardaten sammeln
+            const formData = new FormData();
+            formData.append('case_id', caseInput.value);
+            formData.append('tissue_id', tissueInput.value);
+            formData.append('process', selectedProcess);
+
+            try {
+                const response = await fetch("{{ url_for('pathologist_view') }}", {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+
+                if (response.ok) {
+
+                    showSuccessMessage();
+                    // Formular zurücksetzen
+                    form.reset();
+                    checkValidity();
+                } else {
+                    // Fehlerbehandlung
+                    alert('Error saving data.');
+                }
+            } catch (error) {
+                console.error('Error sending data:', error);
+                alert('Error processing data.');
+            }
+        }
+    });
+</script>
+
+{% endblock %}

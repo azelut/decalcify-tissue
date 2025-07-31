@@ -1,0 +1,148 @@
+{% extends 'layout.html' %}
+{% block content %}
+<h2 class="text-xl mb-4">Tissues Decalcification Overview</h2>
+
+<!-- Filter Input -->
+<div class="mb-2">
+    <input type="text" id="filterInput" placeholder="Filter by any content" class="border border-gray-400 px-2 py-1 rounded" onkeyup="filterTable()">
+</div>
+
+<!-- Tabelle -->
+<table class="bg-gray-100 w-full border-collapse border border-gray-800 mb-4" id="tissuesTable">
+    <thead>
+        <th class="border border-gray-300 px-2 py-1 cursor-pointer" onclick="sortTable(0)">Case ID</th>
+        <th class="border border-gray-300 px-2 py-1 cursor-pointer" onclick="sortTable(1)">Tissue ID</th>
+        <th class="border border-gray-300 px-2 py-1 cursor-pointer" onclick="sortTable(2)">Pathologist</th>
+        <th class="border border-gray-300 px-2 py-1 cursor-pointer" onclick="sortTable(3)">Process</th>
+        <th class="border border-gray-300 px-2 py-1 cursor-pointer" onclick="sortTable(4)">Status</th>
+        <th class="border border-gray-300 px-2 py-1 cursor-pointer" onclick="sortTable(5)">Last Updated</th>
+        <th class="border border-gray-300 px-2 py-1 cursor-pointer" onclick="sortTable(6)">Init Date</th>
+        <th class="border border-gray-300 px-2 py-1 cursor-pointer" onclick="sortTable(7)">Days passed</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for tissue in tissues %}
+        <tr class="cursor-pointer hover:bg-gray-200" onclick="showHistory('{{ tissue.id }}')" data-earliest-date="{{ tissue.init_date}}" data-init-date="{{ tissue.init_date.isoformat() }}">
+            <td class="border border-gray-300 px-2 py-1">{{ tissue.case_id }}</td>
+            <td class="border border-gray-300 px-2 py-1">{{ tissue.tissue_id }}</td>
+            <td class="border border-gray-300 px-2 py-1">{{ tissue.user_name }}</td>
+            <td class="border border-gray-300 px-2 py-1">{{ tissue.process }}</td>
+            <td class="border border-gray-300 px-2 py-1">{{ tissue.status }}</td>
+            <td class="border border-gray-300 px-2 py-1">{{ tissue.last_updated.strftime('%Y-%m-%d %H:%M') }}</td>
+            <td class="border border-gray-300 px-2 py-1">{{ tissue.init_date.strftime('%Y-%m-%d %H:%M') }}</td>
+            <td class="border border-gray-300 px-2 py-1 days-passed"></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+
+<div id="history" class="bg-white p-4 rounded shadow hidden max-w-3xl mx-auto">
+    <h3 class="text-xl mb-2">Tissue History</h3>
+    <div id="history-content"></div>
+</div>
+
+<script>
+    function showHistory(u_processid) {
+        fetch('/decal/tissue/' + u_processid)
+            .then(res => res.text())
+            .then(html => {
+                document.getElementById('history').classList.remove('hidden');
+                document.getElementById('history-content').innerHTML = html;
+            });
+    }
+
+    let sortDirection = {}; // um die Sortierrichtung pro Spalte zu speichern
+
+    // Funktion zum Filtern
+    function filterTable() {
+        const input = document.getElementById('filterInput');
+        const filter = input.value.toLowerCase();
+        const table = document.getElementById('tissuesTable');
+        const tbody = table.tBodies[0];
+        const rows = tbody.getElementsByTagName('tr');
+
+        for (let row of rows) {
+            const cells = row.getElementsByTagName('td');
+            let match = false;
+            for (let cell of cells) {
+                if (cell.textContent.toLowerCase().includes(filter)) {
+                    match = true;
+                    break;
+                }
+            }
+            row.style.display = match ? '' : 'none';
+        }
+    }
+
+
+    // Funktion zum Sortieren
+    function sortTable(columnIndex) {
+        const table = document.getElementById('tissuesTable');
+        const tbody = table.tBodies[0];
+        const rows = Array.from(tbody.getElementsByTagName('tr'));
+        const direction = sortDirection[columnIndex] === 'asc' ? 'desc' : 'asc';
+
+        rows.sort((a, b) => {
+            const aText = a.getElementsByTagName('td')[columnIndex].textContent.trim();
+            const bText = b.getElementsByTagName('td')[columnIndex].textContent.trim();
+
+            // Für Datum sortieren
+            if (columnIndex === 5) {
+                const dateA = new Date(aText);
+                const dateB = new Date(bText);
+                return direction === 'asc' ? dateA - dateB : dateB - dateA;
+            }
+
+            // Für Textsortierung
+            if (aText.toLowerCase() < bText.toLowerCase()) {
+                return direction === 'asc' ? -1 : 1;
+            }
+            if (aText.toLowerCase() > bText.toLowerCase()) {
+                return direction === 'asc' ? 1 : -1;
+            }
+            return 0;
+        });
+
+        // Sortierte Zeilen wieder in die Tabelle einfügen
+        for (let row of rows) {
+            tbody.appendChild(row);
+        }
+
+        // Richtung umkehren für nächste Sortierung
+
+
+        sortDirection[columnIndex] = direction;
+
+        // Optional: Pfeile in den Headern anzeigen
+        // (Hier kannst du das hinzufügen, um die Sortierrichtung zu visualisieren)
+    }
+
+    // Nach dem Laden der Seite
+</script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const rows = document.querySelectorAll('#tissuesTable tbody tr');
+
+        rows.forEach(row => {
+            const initDateStr = row.getAttribute('data-init-date');
+            if (initDateStr) {
+                const initDate = new Date(initDateStr);
+                const today = new Date();
+
+                // Calculate difference in days
+                const diffTime = today - initDate;
+                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+                // Find the Days passed cell and update it
+                const daysCell = row.querySelector('.days-passed');
+                if (daysCell) {
+                    daysCell.textContent = diffDays;
+                }
+            }
+        });
+    });
+</script>
+
+
+{% endblock %}

@@ -1,0 +1,210 @@
+{% extends 'layout.html' %}
+{% block content %}
+<h2 class="text-xl mb-4">Tissues Decalcification Management</h2>
+
+<!-- Filter Input -->
+<div class="mb-2">
+    <input type="text" id="filterInput" placeholder="Filter by any content" class="border border-gray-400 px-2 py-1 rounded" onkeyup="filterTable()">
+</div>
+
+<!-- Tabelle -->
+<table class="w-full border-collapse border border-gray-400 mb-4" id="tissuesTable">
+    <thead>
+        <th class="border border-gray-300 px-2 py-1 cursor-pointer" onclick="sortTable(0)" id="header-0">Case ID</th>
+        <th class="border border-gray-300 px-2 py-1 cursor-pointer" onclick="sortTable(1)" id="header-1">Tissue ID</th>
+        <th class="border border-gray-300 px-2 py-1 cursor-pointer" onclick="sortTable(2)" id="header-2">Pathologist</th>
+        <th class="border border-gray-300 px-2 py-1 cursor-pointer" onclick="sortTable(3)" id="header-3">Process</th>
+        <th class="border border-gray-300 px-2 py-1 cursor-pointer" onclick="sortTable(4)" id="header-4">Status</th>
+        <th class="border border-gray-300 px-2 py-1 cursor-pointer" onclick="sortTable(5)" id="header-5">Last Updated</th>
+        <th class="border border-gray-300 px-2 py-1 cursor-pointer" onclick="sortTable(6)" id="header-6">Days passed</th>
+        <th class="border border-gray-300 px-2 py-1">Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for tissue in tissues %}
+        <tr class="cursor-pointer hover:bg-gray-200" onclick="showHistory('{{ tissue.id }}')" data-earliest-date="{{ tissue.init_date}}" data-init-date="{{ tissue.init_date.isoformat() }}">
+            <td class="border border-gray-300 px-2 py-1">{{ tissue.case_id }}</td>
+            <td class="border border-gray-300 px-2 py-1">{{ tissue.tissue_id }}</td>
+            <td class="border border-gray-300 px-2 py-1">{{ tissue.user_name }}</td>
+            <td class="border border-gray-300 px-2 py-1">{{ tissue.process }}</td>
+            <td class="border border-gray-300 px-2 py-1">{{ tissue.status }}</td>
+            <td class="border border-gray-300 px-2 py-1">{{ tissue.last_updated.strftime('%Y-%m-%d %H:%M') }}</td>
+            <td class="border border-gray-300 px-2 py-1 days-passed"></td>
+            <td class="border border-gray-300 px-2 py-1 space-x-2">
+                {% if tissue.status != 'Done' %}
+                <button onclick="updateStatus('{{ tissue.id }}', 'checked')" class="bg-green-500 text-white px-2 py-1 rounded">Checked</button>
+                <button onclick="updateStatus('{{ tissue.id }}', 'done')" class="bg-blue-500 text-white px-2 py-1 rounded">DONE</button>
+                <button onclick="updateStatus('{{ tissue.id }}', 'acid')" class="bg-yellow-600 text-white px-2 py-1 rounded">ACID</button>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+<div id="legend" class="w-full  mb-4">
+    <p> Row color indicators for processed time per tissue:
+        <i><span class="color-indicator" style="background-color: #A2F7B6C3; display: inline-block; width: 15px; height: 15px; border-radius: 50%; margin-right: 8px;"></span>not more than 1 day</i>
+        <i><span class="color-indicator" style="background-color: #FFDC69DB; display: inline-block; width: 15px; height: 15px; border-radius: 50%; margin-right: 8px;"></span>between 2 to 4 days</i>
+        <i><span class="color-indicator" style="background-color: #FD3A5AD7; display: inline-block; width: 15px; height: 15px; border-radius: 50%; margin-right: 8px;"></span>longer than 5 days</i>
+    </p>
+</div>
+<div id="history" class="bg-white p-4 rounded shadow hidden max-w-3xl mx-auto">
+    <h3 class="text-xl mb-2">Tissue History</h3>
+    <div id="history-content"></div>
+</div>
+
+<script>
+    function showHistory(u_processid) {
+        fetch('/decal/tissue/' + u_processid)
+            .then(res => res.text())
+            .then(html => {
+                document.getElementById('history').classList.remove('hidden');
+                document.getElementById('history-content').innerHTML = html;
+            });
+    }
+
+    function updateStatus(u_processid, action) {
+        fetch('/decal/update_tissue', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    tissue_id: u_processid,
+                    action: action
+                })
+            }).then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    location.reload();
+                } else {
+                    alert('Error updating tissue');
+                }
+            });
+    }
+
+    let sortDirection = {}; // um die Sortierrichtung pro Spalte zu speichern
+
+    // Funktion zum Filtern
+    function filterTable() {
+        const input = document.getElementById('filterInput');
+        const filter = input.value.toLowerCase();
+        const table = document.getElementById('tissuesTable');
+        const tbody = table.tBodies[0];
+        const rows = tbody.getElementsByTagName('tr');
+
+        for (let row of rows) {
+            const cells = row.getElementsByTagName('td');
+            let match = false;
+            for (let cell of cells) {
+                if (cell.textContent.toLowerCase().includes(filter)) {
+                    match = true;
+                    break;
+                }
+            }
+            row.style.display = match ? '' : 'none';
+        }
+    }
+
+    // Funktion, um Zeilen farblich zu markieren basierend auf den Tagen
+    function colorizeTissueRows() {
+        const today = new Date();
+        const rows = document.querySelectorAll('#tissuesTable tbody tr');
+        rows.forEach(row => {
+            const earliestDateStr = row.getAttribute('data-earliest-date');
+            if (!earliestDateStr) return; // Falls kein Datum vorhanden
+            const earliestDate = new Date(earliestDateStr);
+            const diffTime = today - earliestDate;
+            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+            if (diffDays <= 1) {
+                // Tag 1: grün
+                row.style.backgroundColor = '#A2F7B6C3'; // hellgrün
+            } else if (diffDays >= 2 && diffDays <= 4) {
+                // Tag 2-4: gelb
+                row.style.backgroundColor = '#FFDC69DB'; // hellgelb
+            } else if (diffDays >= 5) {
+                // Tag 5 oder mehr: rot
+                row.style.backgroundColor = '#FD3A5AD7'; // hellrot
+            }
+        });
+    }
+
+
+    // Funktion zum Sortieren
+    function sortTable(columnIndex) {
+        const table = document.getElementById('tissuesTable');
+        const tbody = table.tBodies[0];
+        const rows = Array.from(tbody.getElementsByTagName('tr'));
+        const headerCells = document.querySelectorAll('th');
+
+        // Bestimme die neue Richtung
+        const currentDirection = sortDirection[columnIndex] === 'asc' ? 'desc' : 'asc';
+
+        // Sortiere die Zeilen
+        rows.sort((a, b) => {
+            const aText = a.getElementsByTagName('td')[columnIndex].textContent.trim();
+            const bText = b.getElementsByTagName('td')[columnIndex].textContent.trim();
+
+            // Für Datum sortieren
+            if (columnIndex === 5) {
+                const dateA = new Date(aText);
+                const dateB = new Date(bText);
+                return currentDirection === 'asc' ? dateA - dateB : dateB - dateA;
+            }
+
+            // Für Textsortierung
+            const aLower = aText.toLowerCase();
+            const bLower = bText.toLowerCase();
+            if (aLower < bLower) return currentDirection === 'asc' ? -1 : 1;
+            if (aLower > bLower) return currentDirection === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        // Zeilen neu anordnen
+        rows.forEach(row => tbody.appendChild(row));
+
+        // Richtung speichern
+        sortDirection[columnIndex] = currentDirection;
+
+        // Pfeile in den Headern aktualisieren
+        updateSortArrows(headerCells, columnIndex, currentDirection);
+    }
+
+    // Funktion zum Aktualisieren der Pfeile in den Headern
+    function updateSortArrows(headers, sortedColumnIndex, direction) {
+        headers.forEach((header, index) => {
+            // Entferne vorherige Pfeile
+            header.innerHTML = header.textContent.replace(/[\u25B2\u25BC]$/, '').trim();
+            if (index === sortedColumnIndex) {
+                // Füge Pfeil basierend auf Richtung hinzu
+                const arrow = direction === 'asc' ? '\u25B2' : '\u25BC'; // ▲ oder ▼
+                header.innerHTML += ' ' + arrow;
+            }
+        });
+    }
+
+    // Nach dem Laden der Seite
+    document.addEventListener('DOMContentLoaded', () => {
+        colorizeTissueRows();
+        const rows = document.querySelectorAll('#tissuesTable tbody tr');
+
+        rows.forEach(row => {
+            const initDateStr = row.getAttribute('data-init-date');
+            if (initDateStr) {
+                const initDate = new Date(initDateStr);
+                const today = new Date();
+
+                // Calculate difference in days
+                const diffTime = today - initDate;
+                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+                // Find the Days passed cell and update it
+                const daysCell = row.querySelector('.days-passed');
+                if (daysCell) {
+                    daysCell.textContent = diffDays;
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}
